@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter pub *)",
+      "Bash(flutter build *)",
+      "Bash(./gradlew --stop)",
+      "Bash(gradlew.bat --stop)",
+      "Bash(cmd /c \"cd C:\\\\Users\\\\Test-August2023\\\\Downloads\\\\visually_impaired_app\\\\android && gradlew.bat --stop\")",
+      "Bash(cmd /c \"gradlew.bat assembleDebug --stacktrace 2>&1\")",
+      "Bash(flutter clean *)",
+      "Bash(cmd /c \"gradlew.bat assembleDebug --stacktrace 2>&1 | more\")",
+      "Bash(cmd /c \"cd /d C:\\\\Users\\\\Test-August2023\\\\Downloads\\\\visually_impaired_app\\\\android && gradlew.bat assembleDebug --stacktrace > C:\\\\Users\\\\Test-August2023\\\\gradle_log.txt 2>&1 && echo DONE\")",
+      "Read(//c/Users/Test-August2023/**)",
+      "Bash(cargo --version)",
+      "Bash(rustc --version)",
+      "Bash(flutter --version)",
+      "Bash(cl.exe)",
+      "Bash(gcc --version)",
+      "Bash(clang --version)"
+    ]
+  }
+}

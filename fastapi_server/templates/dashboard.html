@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assistive Device Monitor</title>
+    <style>
+        :root {
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-primary: #333;
+            --accent-color: #2c3e50;
+            --alert-color: #e74c3c;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 20px;
+            color: var(--text-primary);
+        }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { color: var(--accent-color); margin: 0; }
+        .status-bar { text-align: center; color: #7f8c8d; font-size: 0.9em; margin-top: 5px; }
+        
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        @media (max-width: 768px) { .container { grid-template-columns: 1fr; } }
+        
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .image-container img {
+            max-width: 100%;
+            border-radius: 8px;
+            border: 2px solid #ddd;
+        }
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            width: 100%;
+        }
+        .metric-box {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .metric-value { font-size: 1.5em; font-weight: bold; color: var(--accent-color); }
+        .metric-label { font-size: 0.85em; color: #7f8c8d; text-transform: uppercase; }
+        
+        /* Alert Animation */
+        .alert {
+            animation: pulse 1s infinite;
+            border: 2px solid var(--alert-color);
+            background-color: #fadbd8 !important;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Assistive Device Dashboard</h1>
+        <div class="status-bar">Last Update: <span id="last-update">Waiting...</span></div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h3>Latest Capture</h3>
+            <div class="image-container">
+                <img id="cam-feed" src="https://via.placeholder.com/320x240?text=Waiting+for+Capture" alt="Waiting for anomaly...">
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Sensor Readings</h3>
+            <div class="metrics-grid">
+                <div class="metric-box" id="box-dist">
+                    <div class="metric-value"><span id="val-dist">--</span> cm</div>
+                    <div class="metric-label">Obstacle Distance</div>
+                </div>
+                <div class="metric-box" id="box-temp">
+                    <div class="metric-value"><span id="val-temp">--</span> °C</div>
+                    <div class="metric-label">Object Temp</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-value"><span id="val-amb">--</span> °C</div>
+                    <div class="metric-label">Ambient Temp</div>
+                </div>
+                <div class="metric-box" id="box-accel">
+                    <div class="metric-value"><span id="val-accel">--</span> m/s²</div>
+                    <div class="metric-label">Acceleration</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "/latest";
+
+        async function fetchData() {
+            try {
+                const response = await fetch(API_URL);
+                const data = await response.json();
+
+                // 1. Update Timestamp
+                document.getElementById('last-update').innerText = data.last_update;
+
+                // 2. Update Image
+                const imgElement = document.getElementById('cam-feed');
+                if (data.latest_image_url) {
+                    imgElement.src = data.latest_image_url; 
+                }
+
+                // 3. Update Sensors
+                const sensors = data.sensor_data;
+                document.getElementById('val-dist').innerText = sensors.distance_cm.toFixed(1);
+                document.getElementById('val-temp').innerText = sensors.obj_temp_c.toFixed(1);
+                document.getElementById('val-amb').innerText = sensors.ambient_temp_c.toFixed(1);
+                document.getElementById('val-accel').innerText = sensors.accel_magnitude.toFixed(2);
+
+                // 4. Alerts
+                checkAlert('box-dist', sensors.distance_cm < 50 && sensors.distance_cm > 0);
+                checkAlert('box-temp', sensors.obj_temp_c > 30);
+                checkAlert('box-accel', sensors.accel_magnitude > 15);
+
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            }
+        }
+
+        function checkAlert(elementId, isAlert) {
+            const el = document.getElementById(elementId);
+            if (isAlert) {
+                el.classList.add('alert');
+            } else {
+                el.classList.remove('alert');
+                el.style.backgroundColor = '#ecf0f1';
+            }
+        }
+
+        setInterval(fetchData, 2000);
+        fetchData();
+    </script>
+</body>
+</html>
