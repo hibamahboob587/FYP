@@ -20,14 +20,16 @@ import cv2
 import PIL.Image
 import io
 import google.generativeai as genai
+from dotenv import load_dotenv
 from detection import detect_objects, process_detections
 from message import build_final_message
+
+load_dotenv()
 
 # --------------------
 # GEMINI CONFIG
 # --------------------
-# Move API key to .env in production
-GEMINI_API_KEY = "AIzaSyDgr2m4u1s5jVlLDAEeI6CuEYERszGqBvY"
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL   = "gemini-2.5-flash"
 
 genai.configure(api_key=GEMINI_API_KEY)
@@ -84,9 +86,8 @@ def safe_parse_gemini(text: str) -> dict:
         print("⚠️ Invalid JSON from Gemini:", text)
         return {"objects": [], "instruction": "Proceed carefully"}
 
-SUPABASE_URL="https://iwkcodkbjnmtrxrtstvd.supabase.co"
-
-SUPABASE_SERVICE_KEY="sb_secret_6kTchyCsTxafWcOamjZUag_l7UsgH2z"
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 
 supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 # --------------------
@@ -98,8 +99,8 @@ if not firebase_admin._apps:
         cred,
         {"databaseURL": "https://fyp-assistive-device-default-rtdb.firebaseio.com/"}
     )
-EMAIL_SENDER = "sensordevice31@gmail.com"
-EMAIL_PASSWORD = "cqqqeflosnvricuv"
+EMAIL_SENDER = os.getenv("EMAIL_SENDER")
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
 
 # --------------------
 # FASTAPI INIT
@@ -508,8 +509,100 @@ async def receive_sensor_data(data: SensorData):
         "delta_temp": delta_temp,
         "priority": data.priority
     }
-
 @app.post("/detect")
+async def detect(request: Request):
+
+    if _state["camera_in_flight"]:
+        return {"message": "camera busy", "skipped": True}
+
+    _state["camera_in_flight"] = True
+    file_path = None
+
+    try:
+        # 1. Receive image
+        file_path = f"temp_{uuid.uuid4()}.jpg"
+        body = await request.body()
+
+        if len(body) < 1000:
+            return {"error": "image too small"}
+
+        with open(file_path, "wb") as f:
+            f.write(body)
+
+        # 2. Decode image
+        img = cv2.imread(file_path)
+        if img is None:
+            return {"error": "invalid image"}
+
+        # Resize for speed
+        h, w = img.shape[:2]
+        max_dim = 512
+        if max(h, w) > max_dim:
+            scale = max_dim / max(h, w)
+            img = cv2.resize(img, (int(w * scale), int(h * scale)))
+
+        cv2.imwrite(file_path, img)
+
+        # 3. Get sensor distance
+        sensor_distance = latest_status.get("distance") or 0
+
+        # --------------------------------------------------
+        # ✅ YOLO DETECTION (MAIN LOGIC)
+        # --------------------------------------------------
+        yolo_detections = detect_objects(file_path)
+        detections = process_detections(yolo_detections)
+
+        print("🔍 YOLO detections:", detections)
+
+        # Build simple message
+        if detections:
+            instruction = ". ".join(
+                f"{d['label']} {d['distance']} {d['position']}"
+                for d in detections
+            )
+        else:
+            instruction = "Path is clear"
+
+        # Convert to response format
+        objects = [
+            {
+                "name": d["label"],
+                "position": d["position"],
+                "risk": "high" if d["distance"] != "far" else "low"
+            }
+            for d in detections
+        ]
+
+        has_alert = any(o["risk"] == "high" for o in objects)
+
+        # Update global state
+        latest_status.update({
+            "alert": has_alert,
+            "message": instruction,
+            "reason": objects[0]["name"] if objects else "safe",
+            "distance": sensor_distance,
+            "updated_at": _now_iso()
+        })
+
+        return {
+            "alert": has_alert,
+            "message": instruction,
+            "objects": objects,
+            "source": "yolo",
+            "distance_cm": sensor_distance
+        }
+
+    except Exception as e:
+        print("❌ Detection error:", str(e))
+        return {"error": str(e)}
+
+    finally:
+        _state["camera_in_flight"] = False
+        if file_path and os.path.exists(file_path):
+            os.remove(file_path)
+            
+            
+""" @app.post("/detect")
 async def detect(request: Request):
 
     # ── Camera gate — reject parallel calls ────────────────────────────────
@@ -718,4 +811,4 @@ async def detect(request: Request):
     finally:
         _state["camera_in_flight"] = False   # always release gate
         if file_path and os.path.exists(file_path):
-            os.remove(file_path)
+            os.remove(file_path) """

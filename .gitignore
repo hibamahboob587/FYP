@@ -44,3 +44,24 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Python
+fastapi_server/venv/
+fastapi_server/__pycache__/
+fastapi_server/*.pyc
+
+# Secrets & credentials
+fastapi_server/firebase_key.json
+fastapi_server/.env
+
+# Binary model weights (keep blind_assist_best.onnx, exclude generic pretrained weights)
+fastapi_server/*.pt
+
+# Test/temp images
+fastapi_server/*.jfif
+fastapi_server/temp_*.jpg
+fastapi_server/image.jpg
+fastapi_server/test.jpg
+
+# Jupyter
+.ipynb_checkpoints/
