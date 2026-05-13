@@ -16,7 +16,12 @@
       "Bash(flutter --version)",
       "Bash(cl.exe)",
       "Bash(gcc --version)",
-      "Bash(clang --version)"
+      "Bash(clang --version)",
+      "Bash(./venv/Scripts/pip.exe freeze *)",
+      "PowerShell(& \"C:\\\\Users\\\\Test-August2023\\\\Downloads\\\\visually_impaired_app\\\\fastapi_server\\\\venv\\\\Scripts\\\\pip.exe\" freeze 2>&1)",
+      "Bash(git add *)",
+      "Bash(git rm *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }
